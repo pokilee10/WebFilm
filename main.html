@@ -2,9 +2,12 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Web Phim Siêu Đẹp</title>
+    <title>KLiHoKa</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap 5, Bootstrap Icons, Google Fonts -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -13,7 +16,7 @@
 <body>
     <div class="container py-4">
         <div class="main-title">
-            <i class="bi bi-film"></i> Web Phim Siêu Đẹp
+            <i class="bi bi-film"></i> KLiHoKa
         </div>
         <div class="user-info mb-3" id="userInfo" style="display:none;">
             👤 Xin chào, <span id="userEmail"></span>
@@ -32,13 +35,25 @@
             </div>
         </div>
         <div class="row mt-3" id="movieList"></div>
-
-        <!-- Phim gợi ý sau khi thích -->
-        <div id="recommendationsSection" class="mt-5" style="display:none;">
-            <h4>Phim Gợi Ý</h4>
-            <div class="row" id="recommendationsList"></div>
-        </div>
     </div>
+
+    <!-- Modal Recommend -->
+    <div class="modal fade" id="recommendModal" tabindex="-1" aria-labelledby="recommendModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header" style="background: linear-gradient(90deg, #ff4081 60%, #ff8c00 100%); color: #fff;">
+            <h5 class="modal-title" id="recommendModalLabel"><i class="bi bi-stars"></i> Phim Gợi Ý Cho Bạn</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+          </div>
+          <div class="modal-body" id="recommendContent">
+            <!-- Nội dung phim gợi ý sẽ được render ở đây -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS (để cuối body, cho modal hoạt động) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -52,7 +67,7 @@
             measurementId: "G-B6Y0DSKFV2"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
         let currentUser = null;
@@ -168,13 +183,13 @@
                 col.innerHTML = `
                     <div class="card shadow-sm h-100">
                         <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">${movie.title}</h5>
+                            <h5 class="card-title"><i class="bi bi-film"></i> ${movie.title}</h5>
                             <p><strong>Thể loại:</strong> ${movie.genres_str}</p>
                             <p><strong>Ngày phát hành:</strong> ${movie.release_date}</p>
                             <p><strong>Điểm đánh giá:</strong> <span class="text-warning">${movie.vote_average}</span></p>
                             <p>${movie.overview}</p>
                             <button class="like-btn mt-auto" onclick="likeMovie('${movie.title.replace(/'/g, "\\'")}')">
-                                Thích
+                                <i class="bi bi-heart-fill"></i> Thích
                             </button>
                         </div>
                     </div>
@@ -195,98 +210,93 @@
         }
 
         function likeMovie(title) {
-    if (!currentUser) {
-        alert('Bạn cần đăng nhập để thích phim!');
-        return;
-    }
-
-    console.log("Gửi yêu cầu gợi ý cho phim:", title);
-
-    fetch(API_RECOMMEND_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ movie_name: title })
-    })
-    .then(res => res.json())
-    .then(data => {
-        const recommendedTitles = data.recommendations || [];
-        console.log("Phim gợi ý:", recommendedTitles);
-
-        const section = document.getElementById('recommendationsSection');
-        const listContainer = document.getElementById('recommendationsList');
-        listContainer.innerHTML = '';
-
-        if (recommendedTitles.length > 0) {
-            section.style.display = 'block';
-
-            // Lọc các phim từ allMovies có tên trùng với gợi ý
-            const matchedMovies = allMovies.filter(movie =>
-                recommendedTitles.includes(movie.title)
-            );
-
-            // Nếu không match gì, hiển thị bằng tên
-            if (matchedMovies.length === 0) {
-                recommendedTitles.forEach(title => {
-                    const card = document.createElement('div');
-                    card.className = 'col-md-6 col-lg-4';
-                    card.innerHTML = `
-                        <div class="card shadow-sm mb-3 h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">${title}</h5>
-                                <p><em>Không tìm thấy thông tin chi tiết.</em></p>
-                            </div>
-                        </div>
-                    `;
-                    listContainer.appendChild(card);
-                });
-            } else {
-                matchedMovies.forEach(movie => {
-                    const card = document.createElement('div');
-                    card.className = 'col-md-6 col-lg-4';
-                    card.innerHTML = `
-                        <div class="card shadow-sm mb-3 h-100">
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">${movie.title}</h5>
-                                <p><strong>Thể loại:</strong> ${movie.genres_str}</p>
-                                <p><strong>Ngày phát hành:</strong> ${movie.release_date}</p>
-                                <p><strong>Điểm đánh giá:</strong> <span class="text-warning">${movie.vote_average}</span></p>
-                                <p>${movie.overview}</p>
-                            </div>
-                        </div>
-                    `;
-                    listContainer.appendChild(card);
-                });
+            if (!currentUser) {
+                alert('Bạn cần đăng nhập để thích phim!');
+                return;
             }
-
-        } else {
-            section.style.display = 'none';
+            fetch(API_RECOMMEND_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ movie_name: title })
+            })
+            .then(res => res.json())
+            .then(data => {
+                // Lưu phim đã thích vào Firebase
+                const userId = currentUser.uid;
+                const userMoviesRef = db.ref('users/' + userId + '/liked_movies');
+                userMoviesRef.once('value').then(snapshot => {
+                    let liked = snapshot.val() || [];
+                    if (!liked.includes(title)) {
+                        liked.push(title);
+                        userMoviesRef.set(liked);
+                    }
+                });
+                // Hiện popup recommend
+                showRecommendPopup(data.recommendations || []);
+            })
+            .catch(err => {
+                alert("Không thể lấy phim gợi ý.");
+            });
         }
 
-        // Ghi lại phim đã thích trong Firebase
-        const userId = currentUser.uid;
-        const userMoviesRef = db.ref('users/' + userId + '/liked_movies');
-        userMoviesRef.once('value').then(snapshot => {
+        function showRecommendPopup(recommendTitles) {
+          const content = document.getElementById('recommendContent');
+          if (recommendTitles.length === 0) {
+            content.innerHTML = `<div class="alert alert-warning">Không có phim gợi ý.</div>`;
+          } else {
+            // Lấy thông tin chi tiết phim từ allMovies (nếu có)
+            const recommendMovies = recommendTitles.map(title =>
+              allMovies.find(m => m.title === title)
+              || { title, genres_str: '', release_date: '', vote_average: '', overview: '' }
+            );
+
+            content.innerHTML = `
+              <div class="recommend-list">
+                ${recommendMovies.map(movie => `
+                  <div class="card recommend-card mb-3 shadow border-0">
+                    <div class="card-body d-flex flex-column flex-md-row align-items-md-center">
+                      <div class="flex-fill">
+                        <h6 class="card-title mb-2 text-pink"><i class="bi bi-film"></i> ${movie.title}</h6>
+                        <p class="mb-1"><strong>Thể loại:</strong> ${movie.genres_str || '<span class="text-muted">Không rõ</span>'}</p>
+                        <p class="mb-1"><strong>Ngày phát hành:</strong> ${movie.release_date || '<span class="text-muted">Không rõ</span>'}</p>
+                        <p class="mb-1"><strong>Điểm đánh giá:</strong> <span class="text-warning">${movie.vote_average || '?'}</span></p>
+                        <p class="mb-2 overview">${movie.overview ? movie.overview.slice(0, 120) + (movie.overview.length > 120 ? '...' : '') : '<span class="text-muted">Không có mô tả</span>'}</p>
+                      </div>
+                      <div class="ms-md-3 mt-3 mt-md-0">
+                        <button class="btn btn-outline-primary" onclick="likeMovieFromRecommend('${movie.title.replace(/'/g, "\\'")}')">
+                          <i class="bi bi-heart"></i> Thêm vào danh sách yêu thích
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          }
+          // Hiện modal
+          const modal = new bootstrap.Modal(document.getElementById('recommendModal'));
+          modal.show();
+        }
+
+        // Hàm này để thêm phim vào danh sách yêu thích từ popup (nếu muốn)
+        function likeMovieFromRecommend(title) {
+          if (!currentUser) {
+            alert('Bạn cần đăng nhập để thích phim!');
+            return;
+          }
+          const userId = currentUser.uid;
+          const userMoviesRef = db.ref('users/' + userId + '/liked_movies');
+          userMoviesRef.once('value').then(snapshot => {
             let liked = snapshot.val() || [];
             if (!liked.includes(title)) {
-                liked.push(title);
-                userMoviesRef.set(liked);
+              liked.push(title);
+              userMoviesRef.set(liked);
+              alert("Đã thêm vào danh sách yêu thích!");
+            } else {
+              alert("Phim này đã có trong danh sách yêu thích của bạn!");
             }
-        });
-    })
-    .catch(err => {
-        console.error("Lỗi khi gọi API:", err);
-        alert("Không thể lấy phim gợi ý.");
-    });
-}
-
-
-        window.onload = function() {
-            if (currentUser) {
-                fetchCSVFromS3();
-            }
-        };
+          });
+        }
     </script>
 </body>
 </html>

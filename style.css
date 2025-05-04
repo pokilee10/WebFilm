@@ -119,3 +119,70 @@ body {
     .auth-card { padding: 1.5rem 0.7rem; }
     .filter-bar { padding: 0.7rem 0.5rem; }
   }
+  .recommend-card {
+    background: rgba(40,42,54,0.97);
+    border-radius: 18px;
+    box-shadow: 0 6px 28px #ff408133;
+    color: #fff;
+    transition: 0.2s;
+  }
+  .recommend-card:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 32px #ff8c0033;
+  }
+  .text-pink {
+    color: #ff4081 !important;
+  }
+  .recommend-card .overview {
+    font-size: 0.95rem;
+    color: #ddd;
+    min-height: 44px;
+  }
+  .recommend-card .btn-outline-primary {
+    border-color: #ff4081;
+    color: #ff4081;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: 0.2s;
+  }
+  .recommend-card .btn-outline-primary:hover {
+    background: linear-gradient(90deg, #ff4081 60%, #ff8c00 100%);
+    color: #fff;
+    border-color: #ff8c00;
+    box-shadow: 0 4px 16px #ff408155;
+  }
+
+  .recommend-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .recommend-card {
+    background: rgba(40,42,54,0.97);
+    border-radius: 18px;
+    color: #fff;
+    transition: 0.2s;
+  }
+  .recommend-card:hover {
+    box-shadow: 0 8px 32px #ff8c0033;
+    transform: translateY(-2px) scale(1.01);
+  }
+  .text-pink { color: #ff4081 !important; }
+  .recommend-card .overview {
+    font-size: 0.95rem;
+    color: #ddd;
+  }
+  .recommend-card .btn-outline-primary {
+    border-color: #ff4081;
+    color: #ff4081;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: 0.2s;
+  }
+  .recommend-card .btn-outline-primary:hover {
+    background: linear-gradient(90deg, #ff4081 60%, #ff8c00 100%);
+    color: #fff;
+    border-color: #ff8c00;
+    box-shadow: 0 4px 16px #ff408155;
+  }
+  
