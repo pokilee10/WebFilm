@@ -1,0 +1,121 @@
+body {
+    background: linear-gradient(135deg, #232526 0%, #414345 100%);
+    min-height: 100vh;
+    font-family: 'Montserrat', Arial, sans-serif;
+    color: #f8f9fa;
+  }
+  .main-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ff4081;
+    text-shadow: 2px 2px 8px #00000055;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+  .auth-card {
+    max-width: 400px;
+    margin: 60px auto 0 auto;
+    background: #232526cc;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px 0 #00000040;
+    padding: 2.5rem 2rem 2rem 2rem;
+  }
+  .auth-card input {
+    background: #2c2f34;
+    color: #fff;
+    border: 1px solid #444;
+  }
+  .auth-card input:focus {
+    border-color: #ff4081;
+    box-shadow: 0 0 0 0.2rem #ff408155;
+  }
+  .auth-btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #ff4081 60%, #ff8c00 100%);
+    border: none;
+    color: #fff;
+    transition: 0.2s;
+  }
+  .auth-btn:hover {
+    background: linear-gradient(90deg, #ff8c00 0%, #ff4081 100%);
+    color: #fff;
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 4px 16px #ff408155;
+  }
+  .logout-btn {
+    background: #ff4081;
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 6px 18px;
+    margin-left: 10px;
+    transition: 0.2s;
+  }
+  .logout-btn:hover {
+    background: #ff8c00;
+    color: #fff;
+    transform: scale(1.05);
+  }
+  .user-info {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    text-align: right;
+  }
+  .filter-bar {
+    background: #232526cc;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px #00000022;
+  }
+  .movie-card {
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: #2c2f34;
+    color: #fff;
+    border: none;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px #00000033;
+    transition: 0.2s;
+  }
+  .card:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 8px 32px #ff408133;
+  }
+  .card-title {
+    font-weight: bold;
+    font-size: 1.3rem;
+    color: #ff4081;
+  }
+  .like-btn {
+    background: linear-gradient(90deg, #ff4081 60%, #ff8c00 100%);
+    color: white;
+    border: none;
+    padding: 7px 22px;
+    border-radius: 8px;
+    margin-top: auto;
+    align-self: start;
+    font-weight: 600;
+    letter-spacing: 1px;
+    transition: 0.2s;
+    box-shadow: 0 2px 8px #ff408155;
+  }
+  .like-btn:hover {
+    background: linear-gradient(90deg, #ff8c00 0%, #ff4081 100%);
+    color: #fff;
+    transform: scale(1.07);
+    box-shadow: 0 4px 16px #ff408155;
+  }
+  @media (max-width: 600px) {
+    .main-title { font-size: 1.5rem; }
+    .auth-card { padding: 1.5rem 0.7rem; }
+    .filter-bar { padding: 0.7rem 0.5rem; }
+  }
