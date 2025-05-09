@@ -13,7 +13,7 @@ ingress:
   enabled: true
   className: nginx
   hosts:
-    - host: webfilm.local
+    - host: tuilalinh.id.vn
       paths:
         - path: /
           pathType: Prefix
