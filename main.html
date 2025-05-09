@@ -35,6 +35,12 @@
             </div>
         </div>
         <div class="row mt-3" id="movieList"></div>
+        <!-- Thêm phân trang -->
+        <div id="pagination" class="d-flex justify-content-center my-4">
+            <button id="prevPage" class="btn btn-outline-primary me-2"><i class="bi bi-arrow-left"></i> Trang trước</button>
+            <div id="pageInfo" class="btn btn-light disabled">Trang <span id="currentPage">1</span> / <span id="totalPages">1</span></div>
+            <button id="nextPage" class="btn btn-outline-primary ms-2">Trang sau <i class="bi bi-arrow-right"></i></button>
+        </div>
     </div>
 
     <!-- Modal Recommend -->
@@ -55,6 +61,96 @@
     <!-- Bootstrap JS (để cuối body, cho modal hoạt động) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <style>
+        /* CSS cho poster phim */
+        .movie-poster {
+            height: 350px;
+            object-fit: cover;
+            object-position: center top;
+            border-top-left-radius: calc(0.375rem - 1px);
+            border-top-right-radius: calc(0.375rem - 1px);
+            background-color: #232526;
+        }
+        /* CSS cho hiển thị phim trong popup gợi ý */
+        .recommend-card .movie-poster {
+            height: 120px;
+            width: 80px;
+            object-fit: cover;
+        }
+
+        /* Cải thiện hiển thị danh sách phim */
+        .movie-card {
+            margin-bottom: 20px;
+        }
+        .movie-card .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            border: none;
+            background-color: #232526ee;
+            color: #fff;
+        }
+        .movie-card .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .movie-card .card-title {
+            color: #ff4081;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            height: 2.5rem;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .movie-card p {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .movie-card .overview {
+            max-height: 80px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        /* Nút phân trang */
+        #pagination {
+            margin: 2rem 0;
+        }
+        #pagination button {
+            background: linear-gradient(90deg, #ff4081 60%, #ff8c00 100%);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            transition: all 0.3s ease;
+        }
+        #pagination button:hover:not(:disabled) {
+            background: linear-gradient(90deg, #ff8c00 0%, #ff4081 100%);
+            transform: scale(1.05);
+        }
+        #pagination button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        #pageInfo {
+            padding: 8px 15px;
+        }
+
+        /* Cải thiện hiển thị trên thiết bị di động */
+        @media (max-width: 767px) {
+            .movie-poster {
+                height: 300px;
+            }
+            .movie-card {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            .filter-bar {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDGn25lfLVLX2eahI41LTLFx9whEZrgRIk",
@@ -73,6 +169,10 @@
         let currentUser = null;
         let allMovies = [];
 
+        // TMDB API Key
+        const TMDB_API_KEY = "bd65461464529e3a5e518979a7a6065c";
+        const TMDB_API_READ_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJiZDY1NDYxNDY0NTI5ZTNhNWU1MTg5NzlhN2E2MDY1YyIsIm5iZiI6MTc0NTY4MzM5MS4wMjgsInN1YiI6IjY4MGQwM2JmZDgwZmRmODJhN2VhYjM2YSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.sAUfjHZ4WzXvgfZCUaLS1kS0mjbMt5vQ14sZPT8r4sY";
+
         const S3_CSV_URL = "https://lxl-bucket.s3.ap-southeast-1.amazonaws.com/tmdb_5000_movies.csv";
         const API_RECOMMEND_URL = "https://qrvat15p0k.execute-api.ap-southeast-1.amazonaws.com/default/film-recommend-system";
 
@@ -83,14 +183,76 @@
             } else {
                 document.getElementById('userInfo').style.display = '';
                 document.getElementById('userEmail').innerText = user.email;
-                fetchCSVFromS3();
+                initPage(); // Khởi tạo trang
             }
         });
+
+        // Hàm khởi tạo trang
+        function initPage() {
+            fetchCSVFromS3();
+            
+            // Thêm sự kiện khi scroll để tải poster 
+            window.addEventListener('scroll', function() {
+                // Kiểm tra các poster visible và tải nếu cần
+                document.querySelectorAll('.movie-poster[data-id]').forEach(img => {
+                    if (isElementInViewport(img) && img.src.includes('placehold.co')) {
+                        const movieId = img.getAttribute('data-id');
+                        if (movieId) {
+                            if (posterCache[movieId] && posterCache[movieId] !== 'loading' && posterCache[movieId] !== 'error') {
+                                img.src = posterCache[movieId];
+                            } else if (posterCache[movieId] !== 'loading') {
+                                loadPosterById(movieId);
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Kiểm tra phần tử có trong viewport không
+        function isElementInViewport(el) {
+            const rect = el.getBoundingClientRect();
+            return (
+                rect.top >= 0 &&
+                rect.left >= 0 &&
+                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+            );
+        }
 
         function logout() {
             auth.signOut();
             alert('Đã đăng xuất!');
             window.location.href = "login.html";
+        }
+
+        // Biến toàn cục cho phân trang
+        let currentPage = 1;
+        let moviesPerPage = 12;
+        let filteredMovies = [];
+
+        // Danh sách cache lưu URL poster đã tải
+        let posterCache = {};
+        
+        // Khôi phục cache từ localStorage nếu có
+        try {
+            const savedCache = localStorage.getItem('posterCache');
+            if (savedCache) {
+                posterCache = JSON.parse(savedCache);
+                console.log('Đã khôi phục cache poster:', Object.keys(posterCache).length);
+            }
+        } catch (e) {
+            console.error('Lỗi khi khôi phục cache:', e);
+            posterCache = {};
+        }
+
+        // Hàm lưu cache vào localStorage
+        function savePosterCache() {
+            try {
+                localStorage.setItem('posterCache', JSON.stringify(posterCache));
+            } catch (e) {
+                console.error('Lỗi khi lưu cache:', e);
+            }
         }
 
         function fetchCSVFromS3() {
@@ -99,7 +261,9 @@
                 .then(csvText => {
                     const movies = parseCSV(csvText);
                     allMovies = movies;
-                    renderMovies(allMovies.slice(0, 20));
+                    filteredMovies = allMovies; // Lưu tất cả phim để phân trang
+                    renderMovies(filteredMovies);
+                    setupPagination();
                 })
                 .catch(err => {
                     document.getElementById('movieList').innerHTML = `<div class="alert alert-danger">Lỗi tải dữ liệu: ${err.message}</div>`;
@@ -110,24 +274,57 @@
             const lines = csvText.trim().split('\n');
             const headers = parseCSVLine(lines[0]);
             const movies = [];
-            for (let i = 1; i < lines.length; i++) {
-                const values = parseCSVLine(lines[i]);
-                const movie = {};
-                headers.forEach((header, index) => {
-                    movie[header] = values[index] || '';
-                });
-                try {
-                    const genresRaw = movie.genres.replace(/""/g, '"');
-                    const genres = JSON.parse(genresRaw);
-                    movie.genres_str = Array.isArray(genres)
-                        ? genres.map(g => g.name).join(', ')
-                        : '';
-                } catch (e) {
-                    movie.genres_str = movie.genres;
+            
+            try {
+                for (let i = 1; i < lines.length; i++) {
+                    const values = parseCSVLine(lines[i]);
+                    if (values.length < headers.length) {
+                        console.log(`Dòng ${i} có dữ liệu không đầy đủ, bỏ qua.`);
+                        continue;
+                    }
+                    
+                    const movie = {};
+                    headers.forEach((header, index) => {
+                        movie[header] = values[index] || '';
+                    });
+                    
+                    // Đảm bảo id là số
+                    if (movie.id) {
+                        movie.id = parseInt(movie.id);
+                    }
+                    
+                    try {
+                        // Xử lý chuỗi JSON thể loại nếu có 
+                        if (movie.genres && movie.genres.includes('{')) {
+                            const genresRaw = movie.genres.replace(/""/g, '"');
+                            const genres = JSON.parse(genresRaw);
+                            movie.genres_str = Array.isArray(genres)
+                                ? genres.map(g => g.name).join(', ')
+                                : '';
+                        } else {
+                            movie.genres_str = movie.genres || '';
+                        }
+                    } catch (e) {
+                        console.log(`Lỗi xử lý thể loại phim ${movie.title}:`, e);
+                        movie.genres_str = movie.genres || '';
+                    }
+                    
+                    // Đảm bảo luôn có tiêu đề
+                    movie.title = movie.title || movie.original_title || `Phim #${i}`;
+                    movies.push(movie);
                 }
-                movie.title = movie.title || movie.original_title || `Phim #${i}`;
-                movies.push(movie);
+            } catch (e) {
+                console.error("Lỗi xử lý CSV:", e);
             }
+            
+            // Log để debug
+            if (movies.length > 0) {
+                console.log("Dữ liệu phim đầu tiên:", movies[0]);
+                console.log("Tổng số phim từ CSV:", movies.length);
+            } else {
+                console.error("Không có phim nào từ CSV");
+            }
+            
             return movies;
         }
 
@@ -154,6 +351,91 @@
             return result;
         }
 
+        // Hàm tạo URL ảnh đại diện cho phim
+        function getMoviePosterUrl(movie) {
+            // Nếu có poster_path hợp lệ, sử dụng TMDB (cấu trúc URL chính xác)
+            if (movie.poster_path && movie.poster_path.length > 3) {
+                // Đảm bảo poster_path bắt đầu bằng "/"
+                const path = movie.poster_path.startsWith('/') ? movie.poster_path : '/' + movie.poster_path;
+                return `https://image.tmdb.org/t/p/w500${path}`;
+            }
+            
+            // Nếu có trong cache, sử dụng URL từ cache
+            if (movie.id && posterCache[movie.id] && posterCache[movie.id] !== 'loading' && posterCache[movie.id] !== 'error') {
+                return posterCache[movie.id];
+            }
+            
+            // Nếu phim có ID, lưu vào cache và sẽ tải poster sau
+            if (movie.id) {
+                // Đánh dấu để tải poster sau
+                setTimeout(() => {
+                    loadPosterById(movie.id);
+                }, 100);
+            }
+            
+            // Trả về URL placeholder tạm thời
+            const placeholderText = encodeURIComponent(movie.title || "Không có tên");
+            return `https://placehold.co/300x450/232526/ff4081?text=${placeholderText}`;
+        }
+
+        // Hàm tải và cập nhật poster bằng ID phim
+        async function loadPosterById(movieId) {
+            // Nếu đã có trong cache và không phải đang tải, trả về URL trực tiếp
+            if (posterCache[movieId] && posterCache[movieId] !== 'loading' && posterCache[movieId] !== 'error') {
+                return posterCache[movieId];
+            }
+
+            // Nếu đang tải, bỏ qua
+            if (posterCache[movieId] === 'loading') {
+                return null;
+            }
+
+            // Đánh dấu trong cache để tránh tải lại nhiều lần
+            posterCache[movieId] = 'loading';
+            
+            try {
+                // Gọi API để lấy poster
+                const posterUrl = await fetchMoviePoster(movieId);
+                
+                if (posterUrl) {
+                    // Cập nhật vào cache
+                    posterCache[movieId] = posterUrl;
+                    savePosterCache(); // Lưu vào localStorage
+                    
+                    // Cập nhật tất cả poster có cùng ID
+                    document.querySelectorAll(`.movie-poster[data-id="${movieId}"]`).forEach(img => {
+                        // Chỉ cập nhật nếu là placeholder
+                        if (img.src.includes('placehold.co')) {
+                            img.src = posterUrl;
+                        }
+                    });
+
+                    return posterUrl;
+                }
+            } catch (error) {
+                console.error(`Lỗi tải poster cho phim ID ${movieId}:`, error);
+                posterCache[movieId] = 'error';
+                savePosterCache(); // Lưu cả lỗi vào cache
+            }
+            
+            return null;
+        }
+
+        // Hàm để thử lấy ảnh từ OMDB API khi cần
+        function tryFetchPosterFromOMDB(movieTitle, imgElement) {
+            // Không cần nữa, đã sử dụng TMDB API
+        }
+
+        // Hàm truy vấn thông tin phim bằng TMDB API nếu bạn có API key
+        function fetchTMDBPoster(movieId, imgElement) {
+            // Không cần nữa, đã được thay thế bằng fetchMoviePoster
+        }
+
+        // Hàm để cố gắng lấy poster từ TMDB API
+        function loadBackupPosters() {
+            // Không cần nữa, đã được thay thế bằng loadPosterById
+        }
+
         function renderMovies(movies) {
             const genreSet = new Set();
             movies.forEach(movie => {
@@ -167,27 +449,99 @@
             Array.from(genreSet).sort().forEach(genre => {
                 genreFilter.innerHTML += `<option value="${genre}">${genre}</option>`;
             });
-            genreFilter.onchange = () => filterAndSearch();
+            genreFilter.onchange = () => filterMovies();
+            document.getElementById('searchInput').oninput = () => filterMovies();
 
-            document.getElementById('searchInput').oninput = () => filterAndSearch();
+            // Hiển thị phim cho trang hiện tại
+            displayCurrentPage();
+        }
 
-            renderMovieList(movies);
+        function filterMovies() {
+            const genre = document.getElementById('genreFilter').value.trim();
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            
+            filteredMovies = allMovies.filter(movie => {
+                const matchGenre = !genre || movie.genres_str.split(',').map(g => g.trim()).includes(genre);
+                const matchKeyword = !keyword || movie.title.toLowerCase().includes(keyword);
+                return matchGenre && matchKeyword;
+            });
+            
+            // Reset về trang 1 khi lọc
+            currentPage = 1;
+            displayCurrentPage();
+            setupPagination();
+        }
+
+        function displayCurrentPage() {
+            const startIndex = (currentPage - 1) * moviesPerPage;
+            const endIndex = startIndex + moviesPerPage;
+            const moviesToDisplay = filteredMovies.slice(startIndex, endIndex);
+            
+            renderMovieList(moviesToDisplay);
+            
+            // Cập nhật thông tin trang
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = Math.ceil(filteredMovies.length / moviesPerPage);
+            
+            // Cập nhật trạng thái nút phân trang
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(filteredMovies.length / moviesPerPage);
+        }
+
+        function setupPagination() {
+            document.getElementById('prevPage').onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayCurrentPage();
+                    window.scrollTo(0, 0);
+                }
+            };
+            
+            document.getElementById('nextPage').onclick = () => {
+                const totalPages = Math.ceil(filteredMovies.length / moviesPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayCurrentPage();
+                    window.scrollTo(0, 0);
+                }
+            };
+            
+            // Hiển thị tổng số trang
+            document.getElementById('totalPages').textContent = Math.ceil(filteredMovies.length / moviesPerPage);
         }
 
         function renderMovieList(movies) {
             const container = document.getElementById('movieList');
             container.innerHTML = '';
+            const movieIds = [];
+            
             movies.forEach(movie => {
+                // Lấy URL poster
+                let posterUrl = getMoviePosterUrl(movie);
+                
+                // Thêm ID vào danh sách cần tải (nếu chưa có poster)
+                if (movie.id && (!posterCache[movie.id] || posterCache[movie.id] === 'error')) {
+                    movieIds.push(movie.id);
+                }
+                
+                // Cắt ngắn mô tả phim
+                let overview = movie.overview || '';
+                const shortOverview = overview.length > 100 ? 
+                    overview.substring(0, 100) + '...' : overview;
+                
                 const col = document.createElement('div');
                 col.className = 'col-md-6 col-lg-4 movie-card';
                 col.innerHTML = `
                     <div class="card shadow-sm h-100">
+                        <img src="${posterUrl}" class="card-img-top movie-poster" alt="${movie.title}" data-id="${movie.id || ''}" 
+                             onerror="this.onerror=null; if(this.src !== 'https://placehold.co/300x450/232526/ff4081?text=${encodeURIComponent(movie.title)}') this.src='https://placehold.co/300x450/232526/ff4081?text=${encodeURIComponent(movie.title)}'" 
+                             loading="lazy">
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title"><i class="bi bi-film"></i> ${movie.title}</h5>
                             <p><strong>Thể loại:</strong> ${movie.genres_str}</p>
-                            <p><strong>Ngày phát hành:</strong> ${movie.release_date}</p>
-                            <p><strong>Điểm đánh giá:</strong> <span class="text-warning">${movie.vote_average}</span></p>
-                            <p>${movie.overview}</p>
+                            <p><strong>Ngày phát hành:</strong> ${movie.release_date || 'Không rõ'}</p>
+                            <p><strong>Điểm đánh giá:</strong> <span class="text-warning">${movie.vote_average || '?'}</span></p>
+                            <p class="overview">${shortOverview || 'Không có mô tả'}</p>
                             <button class="like-btn mt-auto" onclick="likeMovie('${movie.title.replace(/'/g, "\\'")}')">
                                 <i class="bi bi-heart-fill"></i> Thích
                             </button>
@@ -198,16 +552,20 @@
             });
         }
 
-        function filterAndSearch() {
-            const genre = document.getElementById('genreFilter').value.trim();
-            const keyword = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = allMovies.filter(movie => {
-                const matchGenre = !genre || movie.genres_str.split(',').map(g => g.trim()).includes(genre);
-                const matchKeyword = !keyword || movie.title.toLowerCase().includes(keyword);
-                return matchGenre && matchKeyword;
+        // Hàm kiểm tra và tải lại poster từ cache sau khi tải trang
+        function reloadPostersFromCache() {
+            document.querySelectorAll('.movie-poster[data-id]').forEach(img => {
+                const movieId = img.getAttribute('data-id');
+                if (movieId && img.src.includes('placehold.co')) {
+                    if (posterCache[movieId] && posterCache[movieId] !== 'loading' && posterCache[movieId] !== 'error') {
+                        img.src = posterCache[movieId];
+                    }
+                }
             });
-            renderMovieList(filtered.slice(0, 20));
         }
+        
+        // Đăng ký sự kiện reload
+        window.addEventListener('load', reloadPostersFromCache);
 
         function likeMovie(title) {
             if (!currentUser) {
@@ -247,29 +605,42 @@
             // Lấy thông tin chi tiết phim từ allMovies (nếu có)
             const recommendMovies = recommendTitles.map(title =>
               allMovies.find(m => m.title === title)
-              || { title, genres_str: '', release_date: '', vote_average: '', overview: '' }
+              || { title, genres_str: '', release_date: '', vote_average: '', overview: '', poster_path: '', id: '' }
             );
 
             content.innerHTML = `
               <div class="recommend-list">
-                ${recommendMovies.map(movie => `
-                  <div class="card recommend-card mb-3 shadow border-0">
-                    <div class="card-body d-flex flex-column flex-md-row align-items-md-center">
-                      <div class="flex-fill">
-                        <h6 class="card-title mb-2 text-pink"><i class="bi bi-film"></i> ${movie.title}</h6>
-                        <p class="mb-1"><strong>Thể loại:</strong> ${movie.genres_str || '<span class="text-muted">Không rõ</span>'}</p>
-                        <p class="mb-1"><strong>Ngày phát hành:</strong> ${movie.release_date || '<span class="text-muted">Không rõ</span>'}</p>
-                        <p class="mb-1"><strong>Điểm đánh giá:</strong> <span class="text-warning">${movie.vote_average || '?'}</span></p>
-                        <p class="mb-2 overview">${movie.overview ? movie.overview.slice(0, 120) + (movie.overview.length > 120 ? '...' : '') : '<span class="text-muted">Không có mô tả</span>'}</p>
+                ${recommendMovies.map(movie => {
+                    // Lấy URL poster
+                    let posterUrl = getMoviePosterUrl(movie);
+                    
+                    // Cắt ngắn mô tả phim
+                    let overview = movie.overview || '';
+                    const shortOverview = overview.length > 100 ? 
+                        overview.substring(0, 100) + '...' : overview;
+                    
+                    return `
+                      <div class="card recommend-card mb-3 shadow border-0">
+                        <div class="card-body d-flex flex-column flex-md-row align-items-md-center">
+                          <img src="${posterUrl}" class="movie-poster me-3" alt="${movie.title}" data-id="${movie.id || ''}"
+                               onerror="this.onerror=null; this.src='https://placehold.co/300x450/232526/ff4081?text=${encodeURIComponent(movie.title)}'"
+                               loading="lazy">
+                          <div class="flex-fill">
+                            <h6 class="card-title mb-2 text-pink"><i class="bi bi-film"></i> ${movie.title}</h6>
+                            <p class="mb-1"><strong>Thể loại:</strong> ${movie.genres_str || '<span class="text-muted">Không rõ</span>'}</p>
+                            <p class="mb-1"><strong>Ngày phát hành:</strong> ${movie.release_date || '<span class="text-muted">Không rõ</span>'}</p>
+                            <p class="mb-1"><strong>Điểm đánh giá:</strong> <span class="text-warning">${movie.vote_average || '?'}</span></p>
+                            <p class="mb-2 overview">${shortOverview || '<span class="text-muted">Không có mô tả</span>'}</p>
+                          </div>
+                          <div class="ms-md-3 mt-3 mt-md-0">
+                            <button class="btn btn-outline-primary" onclick="likeMovieFromRecommend('${movie.title.replace(/'/g, "\\'")}')">
+                              <i class="bi bi-heart"></i> Thêm vào danh sách yêu thích
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div class="ms-md-3 mt-3 mt-md-0">
-                        <button class="btn btn-outline-primary" onclick="likeMovieFromRecommend('${movie.title.replace(/'/g, "\\'")}')">
-                          <i class="bi bi-heart"></i> Thêm vào danh sách yêu thích
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                `).join('')}
+                    `;
+                }).join('')}
               </div>
             `;
           }
@@ -297,6 +668,51 @@
             }
           });
         }
+
+        // Đảm bảo ID là số khi so sánh
+        function parseMovieId(id) {
+            try {
+                return parseInt(id);
+            } catch {
+                return 0;
+            }
+        }
+
+        // Hàm để lấy poster phim từ API TMDB
+        async function fetchMoviePoster(movieId) {
+            try {
+                const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}`);
+                const data = await response.json();
+                
+                if (data.poster_path) {
+                    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+                }
+                return null;
+            } catch (error) {
+                console.error(`Lỗi khi lấy thông tin phim ${movieId}:`, error);
+                return null;
+            }
+        }
+
+        // Thêm sự kiện để tải lại poster khi trở lại trang
+        window.addEventListener('pageshow', function(event) {
+            // Tải lại poster khi quay lại trang (sử dụng cache nếu có)
+            if (event.persisted) {
+                console.log('Trang được khôi phục từ cache trình duyệt, tải lại poster');
+                setTimeout(() => {
+                    document.querySelectorAll('.movie-poster[data-id]').forEach(img => {
+                        const movieId = img.getAttribute('data-id');
+                        if (movieId && img.src.includes('placehold.co')) {
+                            if (posterCache[movieId] && posterCache[movieId] !== 'loading' && posterCache[movieId] !== 'error') {
+                                img.src = posterCache[movieId];
+                            } else {
+                                loadPosterById(movieId);
+                            }
+                        }
+                    });
+                }, 300);
+            }
+        });
     </script>
 </body>
 </html>
